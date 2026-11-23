@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prop check – NBA over/under hit rates</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EDF1F6;--sf:#fff;--ink:#14213D;--mute:#5C6B84;--ln:#D3DBE6;--ov:#0B8A66;--un:#C23A5B;--mk:#C98B3C;--f:'Barlow Semi Condensed','Arial Narrow',sans-serif;--b:'Barlow',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1623;--sf:#18212F;--ink:#E8EEF7;--mute:#93A1B8;--ln:#2A3649;--ov:#3FD1A1;--un:#FF7A98;--mk:#E3A857}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--b)}
+main{max-width:780px;margin:0 auto;padding:20px 16px 40px}
+h1{font:700 40px/1 var(--f);margin:8px 0 6px}
+h2{font:700 28px/1.1 var(--f);margin:0 0 2px}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:16px;margin-bottom:16px}
+.mute{color:var(--mute);margin:0;font-size:14px}
+.lbl,label{display:block;font:600 14px/1.2 var(--f);color:var(--mute);margin-bottom:6px}
+input,select{width:100%;font:500 16px var(--b);padding:9px 10px;border:1px solid var(--ln);border-radius:6px;background:var(--bg);color:var(--ink)}
+:focus-visible{outline:2px solid var(--mk);outline-offset:2px}
+.list{display:flex;flex-direction:column;margin-top:8px}
+.list button{text-align:left;font:500 16px var(--b);padding:9px 10px;border:0;border-bottom:1px solid var(--ln);background:none;color:var(--ink);cursor:pointer}
+.list button span{color:var(--mute);margin-left:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{font:600 15px var(--f);padding:6px 12px;border:1px solid var(--ln);border-radius:999px;background:var(--sf);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--sf);border-color:var(--ink)}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:560px){.row3{grid-template-columns:1fr}}
+[role=tablist]{display:flex;gap:4px;border-bottom:1px solid var(--ln);margin-bottom:16px;overflow-x:auto}
+[role=tab]{font:600 17px var(--f);background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;color:var(--mute);cursor:pointer;white-space:nowrap}
+[role=tab][aria-selected="true"]{color:var(--ink);border-color:var(--mk)}
+.big{font:700 48px/1 var(--f)}.big .o{color:var(--ov)}.big .u{color:var(--un)}
+.big small{font:500 18px var(--f);color:var(--mute);margin:0 10px 0 4px}
+.split{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:12px 0;background:var(--ln)}
+.split i{display:block}.split .o{background:var(--ov)}.split .u{background:var(--un)}.split .p{background:var(--mute)}
+.facts{display:flex;gap:24px;flex-wrap:wrap}
+.facts div{font:500 14px var(--f);color:var(--mute)}.facts b{display:block;font:700 24px var(--f);color:var(--ink)}
+.chart{margin-top:30px}
+.plot{position:relative;height:160px;display:flex;align-items:flex-end;gap:4px;border-bottom:1px solid var(--ln)}
+.bar{flex:1;position:relative;min-height:2px;border-radius:3px 3px 0 0}
+.bar.o{background:var(--ov)}.bar.u{background:var(--un)}.bar.p{background:var(--mute)}
+.bar i{position:absolute;top:-16px;left:-2px;right:-2px;text-align:center;font:600 11px/1 var(--f);color:var(--mute);font-style:normal}
+.mk{position:absolute;left:0;right:0;border-top:2px dashed var(--mk);pointer-events:none}
+.mk span{position:absolute;right:0;top:-20px;background:var(--mk);color:#14213D;font:700 12px var(--f);padding:1px 6px;border-radius:3px}
+.tw{overflow-x:auto;margin-top:18px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--ln);white-space:nowrap}
+th{font:600 14px var(--f);color:var(--mute)}
+td.r{font-weight:600}
+.t-over{color:var(--ov)}.t-under{color:var(--un)}.t-push{color:var(--mute)}
+footer{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+<h1>Prop check</h1>
+<p class="mute" id="fresh">Loading data…</p>
+
+<section class="card" style="margin-top:16px">
+  <label for="q">Search any NBA player</label>
+  <input id="q" type="search" placeholder="Start typing a name" autocomplete="off">
+  <div id="res" class="list"></div>
+</section>
+
+<div id="app" hidden>
+  <section class="card">
+    <h2 id="who"></h2>
+    <p class="mute" id="last" style="margin-bottom:14px"></p>
+    <span class="lbl">Stat</span><div id="stats" class="chips"></div>
+    <div class="row3">
+      <div><label for="line">Line (type your own)</label><input id="line" type="number" step="0.5" inputmode="decimal"></div>
+      <div><label for="n">Last games</label><select id="n"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></div>
+      <div><label for="opp">Opponent</label><select id="opp"></select></div>
+    </div>
+    <p class="mute" id="hint" style="margin-top:10px"></p>
+  </section>
+  <section class="card">
+    <div role="tablist" id="tabs" aria-label="Game sets"></div>
+    <div id="panel"></div>
+  </section>
+</div>
+
+<footer>Games where a player didn’t play are not counted. Past results don’t predict future games. Gamble responsibly: in Australia, Gambling Help is on 1800 858 858.</footer>
+</main>
+
+<script src="logic.js"></script>
+<script>
+const P = PropLogic, $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate = s => new Date(s + 'T12:00:00').toLocaleDateString('en-AU', {day:'numeric', month:'short', year:'2-digit'});
+let D = null, PL = [], TEAMS = [];
+let S = {id: null, stat: 'pts', n: 10, opp: '', tab: 0, line: 0, manual: false};
+
+async function load() {
+  try {
+    const r = await fetch('data/games.json', {cache: 'no-cache'});
+    if (!r.ok) throw new Error(r.status);
+    D = await r.json();
+  } catch (e) {
+    $('#fresh').textContent = 'Could not load data/games.json. If you opened this file directly, serve the docs folder instead (see the README).';
+    return;
+  }
+  PL = Object.keys(D.players).map(id => ({id, n: D.players[id].n, t: D.players[id].t, g: D.players[id].g, norm: P.normName(D.players[id].n)}));
+  const ts = new Set();
+  PL.forEach(p => { ts.add(p.t); p.g.forEach(g => ts.add(g[1])); });
+  TEAMS = [...ts].sort();
+  $('#opp').innerHTML = TEAMS.map(t => `<option>${t}</option>`).join('');
+  const m = D.meta, up = new Date(m.updated).toLocaleString('en-AU', {dateStyle: 'medium', timeStyle: 'short'});
+  $('#fresh').textContent = `Games through ${fmtDate(m.latest_game)}. Updated ${up}.`;
+}
+
+const cur = () => PL.find(p => p.id === S.id);
+
+function pick(id) {
+  S.id = id;
+  const p = cur();
+  if (!S.opp || S.opp === p.t) S.opp = TEAMS.find(t => t !== p.t);
+  $('#opp').value = S.opp;
+  autoLine();
+  $('#app').hidden = false;
+  $('#res').innerHTML = ''; $('#q').value = '';
+  render();
+}
+function autoLine() {
+  S.manual = false;
+  S.line = P.suggestLine(cur().g, S.stat, S.n);
+  $('#line').value = S.line;
+}
+
+function panel() {
+  const p = cur(), line = S.line;
+  const L2 = [p.g.slice(0, S.n), p.g.filter(g => g[1] === S.opp)][S.tab];
+  if (!L2.length) return '<p class="mute">No games found for this set.</p>';
+  const a = P.summarize(L2, S.stat, line), v = g => P.value(g, S.stat);
+  const C = L2.slice(0, 20).reverse(), mx = (Math.max(line, ...C.map(v)) * 1.12) || 1;
+  const cls = g => { const c = P.classify(v(g), line); return c === 'over' ? 'o' : c === 'under' ? 'u' : 'p'; };
+  const bars = C.map(g => `<div class="bar ${cls(g)}" style="height:${v(g) / mx * 100}%"><i>${v(g)}</i></div>`).join('');
+  const rows = L2.slice(0, 20).map(g => {
+    const c = P.classify(v(g), line), d = v(g) - line;
+    return `<tr><td>${fmtDate(g[0])}</td><td>${g[2] ? 'vs' : '@'} ${g[1]}${g[10] ? ' (playoffs)' : ''}</td><td class="r">${v(g)}</td><td>${d > 0 ? '+' : ''}${d.toFixed(1)}</td><td class="r t-${c}">${c[0].toUpperCase() + c.slice(1)}</td></tr>`;
+  }).join('');
+  const w = n => (n / a.n * 100) + '%';
+  return `<div class="big"><span class="o">${a.over}</span><small>over</small><span class="u">${a.under}</span><small>under</small>${a.push ? `<span style="color:var(--mute)">${a.push}</span><small>push</small>` : ''}</div>
+  <div class="split" role="img" aria-label="${a.over} over, ${a.under} under"><i class="o" style="width:${w(a.over)}"></i><i class="p" style="width:${w(a.push)}"></i><i class="u" style="width:${w(a.under)}"></i></div>
+  <div class="facts"><div><b>${a.overPct}%</b>went over</div><div><b>${a.avg.toFixed(1)}</b>average</div><div><b>${a.n}</b>games${a.n > 20 ? ' (showing 20)' : ''}</div></div>
+  <div class="chart"><div class="plot">${bars}<div class="mk" style="bottom:${line / mx * 100}%"><span>${line}</span></div></div></div>
+  <div class="tw"><table><thead><tr><th>Date</th><th>Game</th><th>${P.STAT_NAMES[S.stat]}</th><th>vs line</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function render() {
+  const p = cur();
+  $('#who').textContent = p.n + ' (' + p.t + ')';
+  $('#last').textContent = p.g.length ? `Last game: ${fmtDate(p.g[0][0])} ${p.g[0][2] ? 'vs' : '@'} ${p.g[0][1]}` : '';
+  $('#stats').innerHTML = P.ORDER.map(s => `<button class="chip" aria-pressed="${s === S.stat}" data-s="${s}">${P.STAT_NAMES[s]}</button>`).join('');
+  $('#hint').textContent = S.manual ? 'Using the line you entered.' : 'The box starts at the recent average. Type the line you want to test.';
+  $('#tabs').innerHTML = ['Last ' + S.n, 'vs ' + S.opp].map((n, i) => `<button role="tab" aria-selected="${i === S.tab}" data-t="${i}">${n}</button>`).join('');
+  $('#panel').innerHTML = panel();
+}
+
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-id],[data-s],[data-t]');
+  if (!b) return;
+  const d = b.dataset;
+  if (d.id) return pick(d.id);
+  if (d.s) { S.stat = d.s; autoLine(); }
+  if (d.t) S.tab = +d.t;
+  render();
+});
+$('#q').addEventListener('input', e => {
+  const hits = P.search(PL, e.target.value, 8);
+  $('#res').innerHTML = hits.map(p => `<button data-id="${p.id}">${esc(p.n)}<span>${p.t}</span></button>`).join('') ||
+    (e.target.value.trim() ? '<p class="mute" style="margin-top:8px">No player matches that name.</p>' : '');
+});
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { const h = P.search(PL, e.target.value, 1)[0]; if (h) pick(h.id); } });
+$('#line').addEventListener('input', e => { const v = parseFloat(e.target.value); if (isFinite(v)) { S.line = v; S.manual = true; render(); } });
+$('#n').addEventListener('change', e => { S.n = +e.target.value; if (!S.manual) autoLine(); render(); });
+$('#opp').addEventListener('change', e => { S.opp = e.target.value; render(); });
+load();
+</script>
+</body>
+</html>
